@@ -12,6 +12,7 @@ import java.util.Properties;
 
 public class MusicProducer {
     public static void main(String[] args) {
+
         // Kafka producer configuration
         Properties properties = new Properties();
         properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");

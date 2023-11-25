@@ -27,7 +27,6 @@ public class MainActivity extends AppCompatActivity {
 
         get.setOnClickListener(view -> GetSong());
 
-
     }
 
     public void GetSong() {

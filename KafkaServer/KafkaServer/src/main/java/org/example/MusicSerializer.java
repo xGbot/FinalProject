@@ -13,6 +13,7 @@ public class MusicSerializer implements Serializer<MusicData> {
         try (ByteArrayOutputStream byteStream = new ByteArrayOutputStream();
              ObjectOutputStream objectStream = new ObjectOutputStream(byteStream)) {
 
+            // Serialize and return
             objectStream.writeObject(data);
             return byteStream.toByteArray();
 

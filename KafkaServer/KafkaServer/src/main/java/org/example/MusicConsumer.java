@@ -28,18 +28,19 @@ public class MusicConsumer {
 
     public static void main(String[] args) throws IOException {
         // Set up Kafka consumer
-        Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
-        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, MusicDeserializer.class.getName());
-        props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
-        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        Properties properties = new Properties();
+        properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, MusicDeserializer.class.getName());
+        properties.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
+        // Create list for retrieved songs
         List<MusicData> musicList = Collections.synchronizedList(new ArrayList<>());
 
         // Start Kafka consumer thread
         new Thread(() -> {
-            try (Consumer<String, MusicData> consumer = new KafkaConsumer<>(props)) {
+            try (Consumer<String, MusicData> consumer = new KafkaConsumer<>(properties)) {
                 consumer.subscribe(Collections.singletonList(KAFKA_TOPIC));
 
                 while (true) {
@@ -72,30 +73,28 @@ public class MusicConsumer {
         public void handle(HttpExchange exchange) throws IOException {
 
             if ("GET".equals(exchange.getRequestMethod())) {
-                String req = exchange.getRequestURI().getQuery(); // Extract song ID from query parameter
 
+                // Extract song ID from query parameter
+                String req = exchange.getRequestURI().getQuery();
                 String[] parts = req.split("=");
                 String songId = parts.length == 2 ? parts[1] : req;
 
-                System.out.println(musicList.size());
-
                 while(true) {
+
                     // Iterate through the records to find the matching song
                     for (MusicData music : musicList) {
-
-                        // Assuming songId matches the songName in this example
                         if (music.getTitle().equals(songId)) {
-
 
                             // Stream the MP3 file to the client
                             streamMp3File(exchange, music.getMusicPath());
-                            return; // Exit the loop once the song is found
+                            return;
+                            
                         }
                     }
 
-                    // If the song is not found, respond with an appropriate message
+                    // If the song is not found send a message
                     String notFoundResponse = "Song not found for ID: " + songId;
-                    System.out.println(notFoundResponse);
+                    System.out.println(notFoundResponse + songId);
 
                     exchange.sendResponseHeaders(404, notFoundResponse.length());
                     try (OutputStream os = exchange.getResponseBody()) {
@@ -111,6 +110,7 @@ public class MusicConsumer {
             exchange.getResponseHeaders().set("Content-Type", "audio/mp3");
             exchange.sendResponseHeaders(200, 0);
 
+            // Send over data from mp3 file
             try (OutputStream os = exchange.getResponseBody();
                  FileInputStream fis = new FileInputStream(filePath)) {
 

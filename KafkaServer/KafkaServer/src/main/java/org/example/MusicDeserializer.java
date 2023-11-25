@@ -11,9 +11,7 @@ import java.util.Map;
 public class MusicDeserializer implements Deserializer<MusicData> {
 
     @Override
-    public void configure(Map<String, ?> configs, boolean isKey) {
-        // No additional configuration needed
-    }
+    public void configure(Map<String, ?> configs, boolean isKey) {}
 
     @Override
     public MusicData deserialize(String topic, byte[] data) {
@@ -29,7 +27,5 @@ public class MusicDeserializer implements Deserializer<MusicData> {
     }
 
     @Override
-    public void close() {
-        // No resources to close
-    }
+    public void close() {}
 }
