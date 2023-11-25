@@ -5,6 +5,7 @@ import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.KafkaFuture;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.LoggerFactory;
 
@@ -14,7 +15,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
 public class MusicConsumer {
@@ -32,26 +35,37 @@ public class MusicConsumer {
         props.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-        try (KafkaConsumer<String, MusicData> consumer = new KafkaConsumer<>(props)) {
-            consumer.subscribe(Collections.singletonList(KAFKA_TOPIC));
+        List<MusicData> musicList = Collections.synchronizedList(new ArrayList<>());
 
-            System.out.println("normal cons " + consumer);
+        // Start Kafka consumer thread
+        new Thread(() -> {
+            try (Consumer<String, MusicData> consumer = new KafkaConsumer<>(props)) {
+                consumer.subscribe(Collections.singletonList(KAFKA_TOPIC));
 
-            // Set up HTTP server
-            HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
-            server.createContext("/request-song", new RequestSongHandler(consumer));
-            server.setExecutor(null);
-            server.start();
-        }
+                while (true) {
+                    ConsumerRecords<String, MusicData> records = consumer.poll(Duration.ofMillis(100));
+                    records.forEach(record -> {
+                        MusicData musicData = record.value();
+                        musicList.add(musicData);
+                    });
+                }
+            }
+        }).start();
+
+        // Set up HTTP server
+        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        server.createContext("/request-song", new RequestSongHandler(musicList));
+        server.setExecutor(null);
+        server.start();
+
     }
-
 
     private static class RequestSongHandler implements HttpHandler {
 
-        private final KafkaConsumer<String, MusicData> kafkaConsumer;
+        private final List<MusicData> musicList;
 
-        public RequestSongHandler(KafkaConsumer<String, MusicData> kafkaConsumer) {
-            this.kafkaConsumer = kafkaConsumer;
+        public RequestSongHandler(List<MusicData> musicList) {
+            this.musicList = musicList;
         }
 
         @Override
@@ -62,40 +76,39 @@ public class MusicConsumer {
 
                 String[] parts = req.split("=");
                 String songId = parts.length == 2 ? parts[1] : req;
-                // Consume the requested song from Kafka
+
+                System.out.println(musicList.size());
+
                 while(true) {
-                    System.out.println("BEFORE REC" + kafkaConsumer);
-                    ConsumerRecords<String, MusicData> records = kafkaConsumer.poll(Duration.ofMillis(100));
-
-                    System.out.println("RECORD " + records);
-
                     // Iterate through the records to find the matching song
-                    for (ConsumerRecord<String, MusicData> record : records) {
-                        MusicData musicData = record.value();
+                    for (MusicData music : musicList) {
 
                         // Assuming songId matches the songName in this example
-                        if (musicData.getTitle().equals(songId)) {
-                            // Stream the MP3 file to the client
-                            System.out.println("STREAMING?");
+                        if (music.getTitle().equals(songId)) {
 
-                            streamMp3File(exchange, musicData.getMusicPath());
+
+                            // Stream the MP3 file to the client
+                            streamMp3File(exchange, music.getMusicPath());
                             return; // Exit the loop once the song is found
                         }
                     }
 
                     // If the song is not found, respond with an appropriate message
                     String notFoundResponse = "Song not found for ID: " + songId;
+                    System.out.println(notFoundResponse);
+
                     exchange.sendResponseHeaders(404, notFoundResponse.length());
                     try (OutputStream os = exchange.getResponseBody()) {
                         os.write(notFoundResponse.getBytes());
                     }
+
                 }
             }
         }
 
         private void streamMp3File(HttpExchange exchange, String filePath) throws IOException {
             // Set response headers for streaming
-            exchange.getResponseHeaders().set("Content-Type", "audio/mpeg");
+            exchange.getResponseHeaders().set("Content-Type", "audio/mp3");
             exchange.sendResponseHeaders(200, 0);
 
             try (OutputStream os = exchange.getResponseBody();
@@ -107,20 +120,6 @@ public class MusicConsumer {
                 while ((bytesRead = fis.read(buffer)) != -1) {
                     os.write(buffer, 0, bytesRead);
                 }
-            }
-        }
-
-        private void sendData(HttpExchange exchange, MusicData data) throws IOException{
-            // Set response headers for streaming
-            exchange.getResponseHeaders().set("Content-Type", "audio/mpeg");
-            exchange.sendResponseHeaders(200, 0);
-
-            try (OutputStream os = exchange.getResponseBody()) {
-
-                os.write(data.getMusicPath().getBytes());
-                os.flush();
-                os.write(data.getTitle().getBytes());
-                os.flush();
             }
         }
 

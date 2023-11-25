@@ -15,10 +15,8 @@ import java.net.URL;
 
 public class MainActivity extends AppCompatActivity {
 
-    final static String KAFKA_TOPIC = "songs-topic";
-    final static String KAFKA_BOOTSTRAP_SERVER = "localhost:9092";
+    private LinearLayout songTitle; // will be used to display list of songs
 
-    private LinearLayout songTitle;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -29,23 +27,20 @@ public class MainActivity extends AppCompatActivity {
 
         get.setOnClickListener(view -> GetSong());
 
+
     }
 
     public void GetSong() {
         String songTitle = "Action Strike";
         Runnable runnable = () -> {
-
             try {
                 // Connect to Server
                 URL url = new URL("http://10.0.2.2:8080/request-song" + "?songId=" + songTitle);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
-                System.out.println("IN HERE");
-
                 try {
-                    System.out.println("OVER HERE");
-
                     if (conn.getResponseCode() == 200) {
+                        System.out.println(conn.getContentType());
 
                         // Set up MediaPlayer with the input stream
                         MediaPlayer mediaPlayer = new MediaPlayer();
@@ -57,6 +52,17 @@ public class MainActivity extends AppCompatActivity {
                         mediaPlayer.setDataSource(url.toString());
                         mediaPlayer.prepare();
                         mediaPlayer.start();
+
+                        while (mediaPlayer.isPlaying()) {
+                            try {
+                                Thread.sleep(1000);
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+
+                        // Release resources when playback is complete
+                        mediaPlayer.release();
                     }
 
                 } catch (IOException e) {
