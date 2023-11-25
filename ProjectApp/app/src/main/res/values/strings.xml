@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">DistributedMusicPlayer</string>
+    <string name="music_stream">Music Stream</string>
+</resources>
