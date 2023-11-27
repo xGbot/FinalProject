@@ -1,17 +1,27 @@
 package com.example.distributedmusicplayer;
 
-import android.media.AudioAttributes;
-import android.media.MediaPlayer;
+import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -22,50 +32,35 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        songTitle = findViewById(R.id.linearlayout_songs);
-        Button get = findViewById(R.id.button_get);
+        songTitle = findViewById(R.id.listview_songs);
+        Button refresh = findViewById(R.id.button_refresh);
 
-        get.setOnClickListener(view -> GetSong());
+        refresh.setOnClickListener(v -> RetrieveSongs());
 
     }
 
-    public void GetSong() {
-        String songTitle = "Action Strike";
+    public void RetrieveSongs() {
         Runnable runnable = () -> {
             try {
                 // Connect to Server
-                URL url = new URL("http://10.0.2.2:8080/request-song" + "?songId=" + songTitle);
+                URL url = new URL("http://10.0.2.2:8080/get-song-titles");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
                 try {
-                    if (conn.getResponseCode() == 200) {
-                        System.out.println(conn.getContentType());
+                    InputStream in = conn.getInputStream();
+                    BufferedReader br = new BufferedReader(new InputStreamReader(in));
 
-                        // Set up MediaPlayer with the input stream
-                        MediaPlayer mediaPlayer = new MediaPlayer();
-                        mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
-                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                                .setUsage(AudioAttributes.USAGE_MEDIA)
-                                .build());
+                    String titles = br.readLine();
 
-                        mediaPlayer.setDataSource(url.toString());
-                        mediaPlayer.prepare();
-                        mediaPlayer.start();
-
-                        while (mediaPlayer.isPlaying()) {
-                            try {
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-
-                        // Release resources when playback is complete
-                        mediaPlayer.release();
+                    if (!titles.isEmpty()) {
+                        Handler handler = new Handler(getMainLooper());
+                        handler.post(() -> {
+                            DisplayTitles(titles);
+                        });
                     }
 
                 } catch (IOException e) {
-                    Log.e("Error playing the streamed song", e.getMessage());
+                    Log.e("Error retrieving titles", e.getMessage());
                 }
             } catch (Exception e) {
                 Log.e("Error making HTTP request", e.getMessage());
@@ -74,7 +69,29 @@ public class MainActivity extends AppCompatActivity {
 
         Thread thread = new Thread(runnable);
         thread.start();
+    }
 
+    public void DisplayTitles(String titles) {
+        String[] splitTitles = titles.split(",");
+        List<String> songNames = Arrays.asList(splitTitles);
+
+        // Inflate the list layout
+
+        for (String song: songNames) {
+            LayoutInflater inflater = LayoutInflater.from(this);
+            View dynamicView = inflater.inflate(R.layout.list_layout, songTitle, false);
+            TextView title = dynamicView.findViewById(R.id.title);
+            title.setText(song);
+
+            FloatingActionButton fab = dynamicView.findViewById(R.id.play_button);
+            fab.setOnClickListener(v -> {
+                Intent intent = new Intent(getApplicationContext(), SongActivity.class);
+                intent.putExtra("name", song);
+                startActivity(intent);
+            });
+
+            songTitle.addView(dynamicView);
+        }
     }
 
 }
