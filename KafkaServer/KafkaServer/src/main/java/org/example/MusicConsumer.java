@@ -25,7 +25,6 @@ public class MusicConsumer {
     private static final String KAFKA_TOPIC = "song-streams";
     private static final String GROUP_ID = "song-consumers-group";
 
-
     public static void main(String[] args) throws IOException {
         // Set up Kafka consumer
         Properties properties = new Properties();
@@ -67,35 +66,32 @@ public class MusicConsumer {
             public void handle(HttpExchange exchange) throws IOException {
 
                 if ("GET".equals(exchange.getRequestMethod())) {
-
                     // Extract song ID from query parameter
                     String req = exchange.getRequestURI().getQuery();
                     String[] parts = req.split("=");
                     String songId = parts.length == 2 ? parts[1] : req;
+                    System.out.println("SONG: " + songId);
+                    // Iterate through the records to find the matching song
+                    for (MusicData music : musicList) {
+                        if (music.getTitle().equals(songId)) {
 
-                    while (true) {
+                            // Stream the MP3 file to the client
+                            streamMp3File(exchange, music.getMusicPath());
+                            return;
 
-                        // Iterate through the records to find the matching song
-                        for (MusicData music : musicList) {
-                            if (music.getTitle().equals(songId)) {
-
-                                // Stream the MP3 file to the client
-                                streamMp3File(exchange, music.getMusicPath());
-                                return;
-
-                            }
                         }
-
-                        // If the song is not found send a message
-                        String notFoundResponse = "Song not found for ID: " + songId;
-                        System.out.println(notFoundResponse + songId);
-
-                        exchange.sendResponseHeaders(404, notFoundResponse.length());
-                        try (OutputStream os = exchange.getResponseBody()) {
-                            os.write(notFoundResponse.getBytes());
-                        }
-
                     }
+
+                    // If the song is not found send a message
+                    String notFoundResponse = "Song not found for ID: " + songId;
+                    System.out.println(notFoundResponse + songId);
+
+                    exchange.sendResponseHeaders(404, notFoundResponse.length());
+                    try (OutputStream os = exchange.getResponseBody()) {
+                        os.write(notFoundResponse.getBytes());
+                    }
+
+
                 }
             }
 

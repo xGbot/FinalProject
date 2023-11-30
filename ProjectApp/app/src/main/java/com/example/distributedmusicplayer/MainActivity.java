@@ -43,7 +43,7 @@ public class MainActivity extends AppCompatActivity {
         Runnable runnable = () -> {
             try {
                 // Connect to Server
-                URL url = new URL("http://10.0.2.2:8080/get-song-titles");
+                URL url = new URL("http://10.0.0.222:8080/get-song-titles");
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
                 try {

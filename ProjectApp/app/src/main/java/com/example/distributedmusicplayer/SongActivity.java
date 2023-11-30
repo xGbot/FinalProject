@@ -3,6 +3,7 @@ package com.example.distributedmusicplayer;
 import android.content.Intent;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Button;
@@ -22,6 +23,9 @@ public class SongActivity extends AppCompatActivity {
 
     MediaPlayer mediaPlayer;
     Boolean loaded = false;
+
+    HttpURLConnection conn = null;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -128,17 +132,63 @@ public class SongActivity extends AppCompatActivity {
         });*/
     }
 
-    public void GetSong(String name) {
-        Runnable runnable = () -> {
+    private class LoadSongTask extends AsyncTask<String, Void, Void> {
+
+        @Override
+        protected Void doInBackground(String... params) {
+            String name = params[0];
             try {
                 // Connect to Server
                 URL url = new URL("http://10.0.2.2:8080/request-song" + "?songId=" + name);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 
+                if (!isCancelled()) {
+                    try {
+                        if (conn.getResponseCode() == 200) {
+                            // Set up MediaPlayer with the input stream
+                            mediaPlayer = new MediaPlayer();
+                            mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
+                                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                                    .build());
+
+                            System.out.println(url.toString());
+                            mediaPlayer.setDataSource(url.toString());
+                            mediaPlayer.setOnPreparedListener(mp -> {
+                                loaded = true;
+                            });
+
+                            mediaPlayer.prepareAsync();
+                        }
+                    } catch (IOException e) {
+                        Log.e("Error playing the streamed song", e.getMessage());
+                    }
+                } else {
+                    if (mediaPlayer != null) {
+                        mediaPlayer.release();
+                        mediaPlayer = null;
+                        loaded = false;
+                    }
+                }
+            } catch (IOException e) {
+                Log.e("Error making HTTP request", e.getMessage());
+            }
+            return null;
+        }
+    }
+
+    public void GetSong(String name) {
+        Runnable runnable = () -> {
+            try {
+                // Connect to Server
+                URL url = new URL("http://10.0.0.222:8080/request-song" + "?songId=" + name);
+                conn = (HttpURLConnection) url.openConnection();
+
                 if (!Thread.currentThread().isInterrupted()) {
                     try {
                         if (conn.getResponseCode() == 200) {
                             // Set up MediaPlayer with the input stream
+                            System.out.println("RESPONSE: " + conn.getResponseMessage());
                             mediaPlayer = new MediaPlayer();
                             mediaPlayer.setAudioAttributes(new AudioAttributes.Builder()
                                     .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -151,6 +201,7 @@ public class SongActivity extends AppCompatActivity {
                             });
 
                             mediaPlayer.prepareAsync();
+
                         }
                     } catch (IOException e) {
                         Log.e("Error playing the streamed song", e.getMessage());
@@ -169,11 +220,15 @@ public class SongActivity extends AppCompatActivity {
         thread.start();
     }
 
+
     protected void onDestroy() {
         super.onDestroy();
         if (mediaPlayer != null) {
             mediaPlayer.release();
             mediaPlayer = null;
+        }
+        if (conn != null) {
+            conn.disconnect();
         }
         loaded = false;
     }
