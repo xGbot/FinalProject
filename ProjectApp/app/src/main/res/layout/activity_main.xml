@@ -20,7 +20,7 @@
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/textview_title"
+        app:layout_constraintTop_toBottomOf="@id/button_downloads"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_margin="16dp">
@@ -38,14 +38,26 @@
             app:layout_constraintBottom_toBottomOf="parent"/>
 
     </ScrollView>
-    <Button
+
+    <ImageButton
         android:id="@+id/button_refresh"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_margin="16dp"
+        android:padding="10dp"
+        android:background="@drawable/baseline_refresh"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
+
+    <Button
+        android:id="@+id/button_downloads"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_margin="16dp"
-        android:padding="5dp"
-        android:background="@drawable/baseline_refresh"
-        app:layout_constraintTop_toTopOf="parent"
+        android:padding="10dp"
+        android:text="Show Downloads"
+        app:layout_constraintTop_toBottomOf="@id/textview_title"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
 

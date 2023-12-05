@@ -2,11 +2,13 @@ package com.example.distributedmusicplayer;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
@@ -15,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,10 +36,40 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         songTitle = findViewById(R.id.listview_songs);
-        Button refresh = findViewById(R.id.button_refresh);
+        ImageButton refresh = findViewById(R.id.button_refresh);
+        Button downloads = findViewById(R.id.button_downloads);
 
         refresh.setOnClickListener(v -> RetrieveSongs());
 
+        downloads.setOnClickListener(v -> {
+            // Get the public external storage directory and music directory location
+            File externalStorageDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
+            File musicDirectory = new File(externalStorageDir, "MyMusic");
+            String titles = ReturnTitles(musicDirectory);
+            DisplayTitles(titles);
+        });
+    }
+
+    private String ReturnTitles(File musicDirectory) {
+
+        File[] files = musicDirectory.listFiles();
+        StringBuilder stringBuilder = new StringBuilder();
+
+        if (musicDirectory.exists() && musicDirectory.isDirectory() && files != null) {
+            for (File file : files) {
+                if (file.isFile() && file.getName().toLowerCase().endsWith(".mp3")) {
+                    String curName = file.getName().substring(0, file.getName().lastIndexOf('.'));
+                    stringBuilder.append(curName + ',');
+                }
+            }
+            // Remove the trailing comma if the string is not empty
+            if (stringBuilder.length() > 0) {
+                stringBuilder.deleteCharAt(stringBuilder.length() - 1);
+            }
+        }
+
+        String titles = stringBuilder.toString();
+        return titles;
     }
 
     public void RetrieveSongs() {
@@ -74,9 +107,9 @@ public class MainActivity extends AppCompatActivity {
     public void DisplayTitles(String titles) {
         String[] splitTitles = titles.split(",");
         List<String> songNames = Arrays.asList(splitTitles);
+        songTitle.removeAllViews();
 
         // Inflate the list layout
-
         for (String song: songNames) {
             LayoutInflater inflater = LayoutInflater.from(this);
             View dynamicView = inflater.inflate(R.layout.list_layout, songTitle, false);
